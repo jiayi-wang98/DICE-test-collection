@@ -1,0 +1,6 @@
+integrated_test/generated_base/
+integrated_test/generated_scale_up/
+integrated_test/generated_scale_out/
+integrated_test/__pycache__/
+__pycache__/
+*.pyc
