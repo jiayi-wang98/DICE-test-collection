@@ -33,18 +33,147 @@ Both test harnesses use the same benchmark list:
 - `hotspot`
 - `pathfinder`
 
-## Prerequisites
+## Pre-Setup
 
-Before running the wrappers, export the CUDA path in your shell:
+### 1. Clone the repository with its submodules
 
 ```bash
-export CUDA_INSTALL_PATH=/usr/local/cuda
-export PTXAS_CUDA_INSTALL_PATH=/usr/local/cuda
+git clone git@github.com:jiayi-wang98/DICE-test-collection.git
+cd DICE-test-collection
+git submodule update --init --recursive
+```
+
+### 2. Install host-side build dependencies
+
+The two simulator trees inherit the usual GPGPU-Sim build requirements. The local simulator READMEs list:
+
+- `build-essential`
+- `xutils-dev`
+- `bison`
+- `flex`
+- `zlib1g-dev`
+- `libglu1-mesa-dev`
+- `libxi-dev`
+- `libxmu-dev`
+- `libglut3-dev`
+
+On Ubuntu, the typical install command is:
+
+```bash
+sudo apt-get install build-essential xutils-dev bison flex zlib1g-dev \
+  libglu1-mesa-dev libxi-dev libxmu-dev libglut3-dev
+```
+
+Optional extras:
+
+- `python3`, `python3-numpy`, `python3-matplotlib`
+  - needed for the local analysis/plotting scripts in `integrated_test`
+- `doxygen`, `graphviz`
+  - only needed if you want to rebuild simulator docs
+
+### 3. Install CUDA and point the repo at it
+
+The benchmark makefiles are currently configured for CUDA 11.7 in:
+
+- [`dice-test-gpu-rodinia/common/make.config`](/data2/jwang710/DICE_ISCA_Eval/dice-test-gpu-rodinia/common/make.config)
+- [`gpu-rodinia/common/make.config`](/data2/jwang710/DICE_ISCA_Eval/gpu-rodinia/common/make.config)
+
+Current expected path:
+
+```text
+/usr/local/cuda-11.7
+```
+
+Before running any wrapper, export:
+
+```bash
+export CUDA_INSTALL_PATH=/usr/local/cuda-11.7
+export PTXAS_CUDA_INSTALL_PATH=/usr/local/cuda-11.7
+```
+
+If your CUDA installation lives somewhere else, update both `common/make.config` files and export the matching environment variables above.
+
+### 4. Rodinia benchmark data
+
+Both benchmark trees expect their own local `data/` directory:
+
+- `dice-test-gpu-rodinia/data`
+- `gpu-rodinia/data`
+
+For the current automated benchmark set, the required datasets are already kept in git in both trees. A normal clone of this repository plus submodules should already contain the data needed by:
+
+- `nn_cuda`
+- `bfs`
+- `backprop`
+- `streamcluster`
+- `gaussian`
+- `hotspot`
+- `pathfinder`
+
+So for the current flows, you normally do not need to download Rodinia data separately.
+
+If your local checkout is missing the data directories, or if you want to repopulate them from the original Rodinia package, the repository layout expects the Rodinia 3.1 data package contents to be extracted there.
+
+If you already have `rodinia-3.1-data.tar.gz`, extract it into both trees:
+
+```bash
+tar -xf rodinia-3.1-data.tar.gz -C /data2/jwang710/DICE_ISCA_Eval/dice-test-gpu-rodinia/data
+tar -xf rodinia-3.1-data.tar.gz -C /data2/jwang710/DICE_ISCA_Eval/gpu-rodinia/data
+```
+
+If one tree is already populated, the simplest way to mirror it into the other is:
+
+```bash
+rsync -a /data2/jwang710/DICE_ISCA_Eval/gpu-rodinia/data/ \
+  /data2/jwang710/DICE_ISCA_Eval/dice-test-gpu-rodinia/data/
+```
+
+or the reverse direction if the DICE tree already has the data.
+
+For the currently automated benchmarks, the important subdirectories are:
+
+- `data/bfs`
+- `data/gaussian`
+- `data/hotspot`
+- `data/nn`
+- `data/pathfinder`
+
+### 5. DICE metadata bundles
+
+The DICE test harness depends on the pre-generated metadata/PPTX bundles stored in:
+
+- `dice-test-gpu-rodinia/cuda/dice_test/sw_20pe`
+- `dice-test-gpu-rodinia/cuda/dice_test/sw_40pe`
+- `dice-test-gpu-rodinia/cuda/dice_test/sw_rtx3070`
+
+The wrappers use them as follows:
+
+- base DICE: `sw_20pe`
+- DICE-U: `sw_40pe`
+- DICE-3070: `sw_rtx3070`
+- DICE-RTX5000 / DICE-RTX6000: `sw_20pe`
+
+### 6. Simulator environment
+
+For manual simulator builds, use the simulator `setup_environment` scripts:
+
+```bash
+cd dice_gpgpu-sim
+source setup_environment debug
+make -j
+```
+
+```bash
+cd gpgpu-sim_distribution
+source setup_environment
+make -j
 ```
 
 The wrapper scripts handle `setup_environment` internally. Do not `source` the wrapper scripts themselves.
 
-Run wrappers with:
+### 7. Quick start
+
+Run the two top-level experiment flows with:
 
 ```bash
 bash integrated_test/run_base_test.sh
