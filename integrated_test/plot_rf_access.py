@@ -15,7 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
 
-from plot_speedup import BENCHMARK_ORDER, detect_variant, geomean, kernel_label_map
+from plot_speedup import (
+    BENCHMARK_ORDER,
+    detect_variant,
+    geomean,
+    is_base_dice_log,
+    is_base_gpu_log,
+    kernel_label_map,
+)
 
 
 KERNEL_NAME_RE = re.compile(r"kernel_name = (?P<kernel_name>\S+)")
@@ -194,19 +201,25 @@ def group_by_kernel(rows: list[dict[str, object]]) -> dict[str, list[dict[str, o
 
 
 def latest_gpu_log(app_dir: Path) -> Path:
-    logs = sorted(path for path in app_dir.glob("test_gpu_*.log") if not path.name.endswith("_asan.log"))
-    if not logs:
-        raise FileNotFoundError(f"No GPU log found in {app_dir}")
-    return logs[-1]
+    matches = [
+        path
+        for path in sorted(
+            path for path in app_dir.glob("test_gpu_*.log") if not path.name.endswith("_asan.log")
+        )
+        if is_base_gpu_log(path)
+    ]
+    if not matches:
+        raise FileNotFoundError(f"No base RTX2060S GPU log found in {app_dir}")
+    return matches[-1]
 
 
 def latest_dice_full_log(app_dir: Path) -> Path:
     matches = []
     for log_path in sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith("_asan.log")):
-        if detect_variant(log_path) == "DICE-full":
+        if is_base_dice_log(log_path) and detect_variant(log_path) == "DICE-full":
             matches.append(log_path)
     if not matches:
-        raise FileNotFoundError(f"No DICE-full log found in {app_dir}")
+        raise FileNotFoundError(f"No base DICE-full log found in {app_dir}")
     return matches[-1]
 
 

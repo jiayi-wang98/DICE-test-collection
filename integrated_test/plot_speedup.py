@@ -54,6 +54,8 @@ PLOT_HATCHES = ["", "///", "---", "\\\\\\", "xxxx"]
 
 UNROLL_RE = re.compile(r"-dice_enable_unrolling\s+([01])")
 TMCU_RE = re.compile(r"-dice_ldst_unit_enable_temporal_coalescing\s+([01])")
+N_CLUSTERS_RE = re.compile(r"^-gpgpu_n_clusters\s+(\d+)", re.MULTILINE)
+PIPELINE_RE = re.compile(r"^-gpgpu_shader_core_pipeline\s+(\S+)", re.MULTILINE)
 
 
 def parse_args() -> argparse.Namespace:
@@ -180,22 +182,82 @@ def detect_variant(log_path: Path) -> str:
     return VARIANT_MAP[(unroll, tmcu)]
 
 
-def build_dice_date_variant_map(app_dir: Path, dice_rows: list[dict[str, str]]) -> dict[str, str]:
-    result_dates = sorted({row["date_time"] for row in dice_rows})
+def parse_log_profile(log_path: Path) -> dict[str, object]:
+    text = log_path.read_text(errors="replace")
+
+    clusters_match = N_CLUSTERS_RE.search(text)
+    pipeline_match = PIPELINE_RE.search(text)
+
+    if clusters_match is None:
+        raise ValueError(f"Could not determine gpgpu_n_clusters from {log_path}")
+    if pipeline_match is None:
+        raise ValueError(f"Could not determine gpgpu_shader_core_pipeline from {log_path}")
+
+    return {
+        "n_clusters": int(clusters_match.group(1)),
+        "shader_core_pipeline": pipeline_match.group(1),
+    }
+
+
+def is_base_gpu_log(log_path: Path) -> bool:
+    profile = parse_log_profile(log_path)
+    return profile["n_clusters"] == 34
+
+
+def is_base_dice_log(log_path: Path) -> bool:
+    profile = parse_log_profile(log_path)
+    return profile["n_clusters"] == 34 and profile["shader_core_pipeline"] == "512:32"
+
+
+def date_log_pairs(rows: list[dict[str, str]], app_dir: Path, prefix: str) -> list[tuple[str, Path]]:
+    result_dates = sorted({row["date_time"] for row in rows})
     log_files = sorted(
-        path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith("_asan.log")
+        path for path in app_dir.glob(f"{prefix}_*.log") if not path.name.endswith("_asan.log")
     )
 
     if len(result_dates) != len(log_files):
         raise ValueError(
-            f"{app_dir.name}: found {len(result_dates)} DICE date groups in result.csv but "
-            f"{len(log_files)} raw DICE logs"
+            f"{app_dir.name}: found {len(result_dates)} date groups in result.csv but "
+            f"{len(log_files)} raw {prefix} logs"
         )
 
-    return {
-        date_time: detect_variant(log_path)
-        for date_time, log_path in zip(result_dates, log_files)
-    }
+    return list(zip(result_dates, log_files))
+
+
+def build_dice_date_variant_map(app_dir: Path, dice_rows: list[dict[str, str]]) -> dict[str, str]:
+    return {date_time: detect_variant(log_path) for date_time, log_path in date_log_pairs(dice_rows, app_dir, "test_dice")}
+
+
+def latest_base_gpu_rows(app: str, gpu_root: Path) -> tuple[str, list[dict[str, str]]]:
+    rows = read_csv_rows(gpu_root / app / f"{app}.result.csv")
+    grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
+    for row in rows:
+        grouped[row["date_time"]].append(row)
+
+    matches = [
+        (date_time, grouped[date_time])
+        for date_time, log_path in date_log_pairs(rows, gpu_root / app, "test_gpu")
+        if is_base_gpu_log(log_path)
+    ]
+    if not matches:
+        raise ValueError(f"{app}: no base RTX2060S GPU run found")
+    return matches[-1]
+
+
+def latest_base_dice_dates_by_variant(app: str, dice_root: Path) -> dict[str, str]:
+    rows = read_csv_rows(dice_root / app / f"{app}.result.csv")
+    selected: dict[str, str] = {}
+
+    for date_time, log_path in date_log_pairs(rows, dice_root / app, "test_dice"):
+        if not is_base_dice_log(log_path):
+            continue
+        selected[detect_variant(log_path)] = date_time
+
+    missing = [variant for variant in VARIANT_ORDER if variant not in selected]
+    if missing:
+        raise ValueError(f"{app}: missing base DICE runs for variants {missing}")
+
+    return selected
 
 
 def latest_rows(rows: list[dict[str, str]]) -> tuple[str, list[dict[str, str]]]:
@@ -218,8 +280,7 @@ def kernel_label_map(gpu_root: Path) -> tuple[dict[str, dict[str, str]], list[tu
     ordered: list[tuple[str, str, str]] = []
 
     for app in BENCHMARK_ORDER:
-        rows = read_csv_rows(gpu_root / app / f"{app}.result.csv")
-        _, latest = latest_rows(rows)
+        _, latest = latest_base_gpu_rows(app, gpu_root)
         kernels_in_order: list[str] = []
         for row in sorted(latest, key=lambda item: int(item["kernel_launch_uid"])):
             kernel = row["kernel_name"]
@@ -237,6 +298,7 @@ def kernel_label_map(gpu_root: Path) -> tuple[dict[str, dict[str, str]], list[tu
 
 
 def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
@@ -255,20 +317,20 @@ def build_outputs(
     variant_speedups: dict[str, list[float]] = defaultdict(list)
 
     for app in BENCHMARK_ORDER:
-        gpu_rows = read_csv_rows(gpu_root / app / f"{app}.result.csv")
-        gpu_date, gpu_latest_rows = latest_rows(gpu_rows)
+        gpu_date, gpu_latest_rows = latest_base_gpu_rows(app, gpu_root)
         gpu_by_kernel = grouped_kernel_runs(gpu_latest_rows)
 
         dice_csv_path = dice_root / app / f"{app}.result.csv"
         dice_rows = read_csv_rows(dice_csv_path)
         dice_date_to_variant = build_dice_date_variant_map(dice_root / app, dice_rows)
+        selected_dice_dates = latest_base_dice_dates_by_variant(app, dice_root)
 
         dice_grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
         for row in dice_rows:
             dice_grouped[row["date_time"]].append(row)
 
-        for date_time in sorted(dice_grouped):
-            variant = dice_date_to_variant[date_time]
+        for variant in VARIANT_ORDER:
+            date_time = selected_dice_dates[variant]
             dice_by_kernel = grouped_kernel_runs(dice_grouped[date_time])
 
             for kernel_name, gpu_kernel_rows in gpu_by_kernel.items():

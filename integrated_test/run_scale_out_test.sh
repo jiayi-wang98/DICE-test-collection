@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 8)}"
-RUN_DICE="${RUN_DICE:-0}"
+RUN_DICE="${RUN_DICE:-1}"
 RUN_GPU="${RUN_GPU:-1}"
 RUN_SCALE_OUT_SPEEDUP="${RUN_SCALE_OUT_SPEEDUP:-1}"
 RUN_3070_SPEEDUP="${RUN_3070_SPEEDUP:-1}"

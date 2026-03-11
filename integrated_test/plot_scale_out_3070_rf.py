@@ -153,6 +153,7 @@ def build_delta_rows(app: str, kernel_name: str, rows: list[dict[str, str]]) -> 
     prev_write = 0
     run_index = 0
     delta_rows: list[dict[str, object]] = []
+    drop_next_valid = False
 
     for row in sorted_rows:
         launch_uid = int(row["kernel_launch_uid"])
@@ -160,13 +161,29 @@ def build_delta_rows(app: str, kernel_name: str, rows: list[dict[str, str]]) -> 
         read = as_int(row["gpgpu_n_tot_regfile_read_acesses"])
         write = as_int(row["gpgpu_n_tot_regfile_write_acesses"])
         if total is None or read is None or write is None:
-            raise ValueError(f"{app} {kernel_name} launch {launch_uid}: missing cumulative regfile counters")
+            print(
+                f"Warning: {app} {kernel_name} launch {launch_uid}: missing cumulative regfile counters; "
+                "skipping this launch and the next valid launch to resynchronize"
+            )
+            drop_next_valid = True
+            continue
 
         delta_total = total - prev_total
         delta_read = read - prev_read
         delta_write = write - prev_write
         if delta_total < 0 or delta_read < 0 or delta_write < 0:
             raise ValueError(f"{app} {kernel_name} launch {launch_uid}: encountered negative regfile delta")
+
+        if drop_next_valid:
+            print(
+                f"Warning: {app} {kernel_name} launch {launch_uid}: treating this launch as combined after a "
+                "missing-counter row; skipping it"
+            )
+            prev_total = total
+            prev_read = read
+            prev_write = write
+            drop_next_valid = False
+            continue
 
         if launch_uid not in skipped_uids:
             run_index += 1

@@ -28,6 +28,7 @@ SCALE_UP_PERF_SCRIPT="${SCRIPT_DIR}/plot_scale_up_perf.py"
 SCALE_UP_RF_SCRIPT="${SCRIPT_DIR}/plot_scale_up_rf.py"
 OUTPUT_DIR="${SCRIPT_DIR}/generated_base"
 SCALE_UP_OUTPUT_DIR="${SCRIPT_DIR}/generated_scale_up"
+BASE_SW_DIR="sw_20pe"
 
 DICE_CFGS=(
   "${REPO_ROOT}/dice-test-gpu-rodinia/cuda/dice_test/cfg/gpgpusim_dice_rtx2060s_naive.config"
@@ -176,6 +177,7 @@ printf '   -> RUN_DICE=%s RUN_DICE_U=%s RUN_GPU=%s RUN_SPEEDUP=%s RUN_RF=%s RUN_
 if [[ "${RUN_DICE}" == "1" ]]; then
   require_dir "${DICE_SIM_DIR}"
   require_dir "${DICE_TEST_DIR}"
+  require_dir "${DICE_TEST_DIR}/${BASE_SW_DIR}"
   require_env CUDA_INSTALL_PATH
 
   echo "==> Building DICE GPGPU-Sim in ${DICE_SIM_DIR}"
@@ -188,8 +190,8 @@ if [[ "${RUN_DICE}" == "1" ]]; then
   pushd "${DICE_TEST_DIR}" >/dev/null
   for cfg in "${DICE_CFGS[@]}"; do
     require_file "${cfg}"
-    echo "   -> CFG_dice=${cfg}"
-    make -j"${JOBS}" test_dice_all CFG_dice="${cfg}"
+    echo "   -> CFG_dice=${cfg} SW_DIR=${BASE_SW_DIR} RUN_SCRIPT=run"
+    make -j"${JOBS}" test_dice_all CFG_dice="${cfg}" SW_DIR="${BASE_SW_DIR}" RUN_SCRIPT=run
   done
   popd >/dev/null
 else
@@ -203,8 +205,8 @@ if [[ "${RUN_DICE_U}" == "1" ]]; then
 
   echo "==> Running DICE-U scale-up sweep in ${DICE_TEST_DIR}"
   pushd "${DICE_TEST_DIR}" >/dev/null
-  echo "   -> CFG_dice=${DICE_U_CFG} SW_DIR=sw_40pe"
-  make -j"${JOBS}" test_dice_all CFG_dice="${DICE_U_CFG}" SW_DIR=sw_40pe
+  echo "   -> CFG_dice=${DICE_U_CFG} SW_DIR=sw_40pe RUN_SCRIPT=run"
+  make -j"${JOBS}" test_dice_all CFG_dice="${DICE_U_CFG}" SW_DIR=sw_40pe RUN_SCRIPT=run
   popd >/dev/null
 else
   echo "==> Skipping DICE-U scale-up sweep"
@@ -224,8 +226,8 @@ if [[ "${RUN_GPU}" == "1" ]]; then
   echo "==> Running GPU benchmark sweep in ${GPU_TEST_DIR}"
   pushd "${GPU_TEST_DIR}" >/dev/null
   require_file "${GPU_CFG}"
-  echo "   -> CFG_gpu=${GPU_CFG}"
-  make -j"${JOBS}" test_all CFG_gpu="${GPU_CFG}"
+  echo "   -> CFG_gpu=${GPU_CFG} RUN_SCRIPT=run"
+  make -j"${JOBS}" test_all CFG_gpu="${GPU_CFG}" RUN_SCRIPT=run
   popd >/dev/null
 else
   echo "==> Skipping baseline GPU simulator/test sweep"
@@ -234,6 +236,7 @@ fi
 if [[ "${RUN_SPEEDUP}" == "1" ]]; then
   require_file "${SPEEDUP_SCRIPT}"
   echo "==> Generating speedup CSV/plots"
+  mkdir -p "${OUTPUT_DIR}"
   pushd "${SCRIPT_DIR}" >/dev/null
   python3 "${SPEEDUP_SCRIPT}" --output-dir "${OUTPUT_DIR}"
   popd >/dev/null
@@ -244,6 +247,7 @@ fi
 if [[ "${RUN_RF}" == "1" ]]; then
   require_file "${RF_SCRIPT}"
   echo "==> Generating RF-access CSV/plots"
+  mkdir -p "${OUTPUT_DIR}"
   pushd "${SCRIPT_DIR}" >/dev/null
   python3 "${RF_SCRIPT}" --output-dir "${OUTPUT_DIR}"
   popd >/dev/null
@@ -254,6 +258,7 @@ fi
 if [[ "${RUN_SCALE_UP_PERF}" == "1" ]]; then
   require_file "${SCALE_UP_PERF_SCRIPT}"
   echo "==> Generating scale-up performance CSV/plots"
+  mkdir -p "${SCALE_UP_OUTPUT_DIR}"
   pushd "${SCRIPT_DIR}" >/dev/null
   python3 "${SCALE_UP_PERF_SCRIPT}" --output-dir "${SCALE_UP_OUTPUT_DIR}"
   popd >/dev/null
@@ -264,6 +269,7 @@ fi
 if [[ "${RUN_SCALE_UP_RF}" == "1" ]]; then
   require_file "${SCALE_UP_RF_SCRIPT}"
   echo "==> Generating scale-up RF-access CSV/plots"
+  mkdir -p "${SCALE_UP_OUTPUT_DIR}"
   pushd "${SCRIPT_DIR}" >/dev/null
   python3 "${SCALE_UP_RF_SCRIPT}" --output-dir "${SCALE_UP_OUTPUT_DIR}"
   popd >/dev/null
