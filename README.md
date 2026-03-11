@@ -102,15 +102,29 @@ Both benchmark trees expect their own local `data/` directory:
 
 For the current automated benchmark set, the required datasets are already kept in git in both trees. A normal clone of this repository plus submodules should already contain the data needed by:
 
-- `nn_cuda`
 - `bfs`
-- `backprop`
-- `streamcluster`
 - `gaussian`
 - `hotspot`
+- `nn_cuda`
+- `backprop`
+- `streamcluster`
 - `pathfinder`
 
 So for the current flows, you normally do not need to download Rodinia data separately.
+
+The currently tracked benchmark input files are:
+
+- `data/bfs/graph65536.txt`
+- `data/bfs/graph128k.txt`
+- `data/gaussian/matrix208.txt`
+- `data/hotspot/temp_512`
+- `data/hotspot/power_512`
+- `data/nn/inputGen/cane512k.db`
+
+Notes:
+
+- `backprop` and `streamcluster` do not require external files in the current `run` / `run_scale_out` scripts.
+- `pathfinder` also does not use an external dataset; `data/pathfinder/.gitkeep` is present only to keep the directory in the repo.
 
 If your local checkout is missing the data directories, or if you want to repopulate them from the original Rodinia package, the repository layout expects the Rodinia 3.1 data package contents to be extracted there.
 
