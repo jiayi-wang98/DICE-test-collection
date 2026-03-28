@@ -1,5 +1,7 @@
 # DICE_ISCA_Eval
 
+DOI: https://doi.org/10.5281/zenodo.19278715
+
 This repository contains the simulator trees, benchmark suites, and analysis scripts used to evaluate DICE against baseline GPGPU-Sim across three experiment families:
 
 - base comparison on RTX2060S
