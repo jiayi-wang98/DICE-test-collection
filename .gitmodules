@@ -1,16 +1,16 @@
 [submodule "dice_gpgpu-sim"]
 	path = dice_gpgpu-sim
-	url = git@github.com:jiayi-wang98/dice_gpgpu-sim.git
+	url = https://github.com/jiayi-wang98/dice_gpgpu-sim.git
 	branch = dice_gpgpu-sim
 [submodule "gpgpu-sim_distribution"]
 	path = gpgpu-sim_distribution
-	url = git@github.com:jiayi-wang98/dice_gpgpu-sim.git
+	url = https://github.com/jiayi-wang98/dice_gpgpu-sim.git
 	branch = gpgpu-sim_distribution
 [submodule "dice-test-gpu-rodinia"]
 	path = dice-test-gpu-rodinia
-	url = git@github.com:jiayi-wang98/dice-test-gpu-rodinia.git
+	url = https://github.com/jiayi-wang98/dice-test-gpu-rodinia.git
 	branch = dice-test-gpu-rodinia
 [submodule "gpu-rodinia"]
 	path = gpu-rodinia
-	url = git@github.com:jiayi-wang98/dice-test-gpu-rodinia.git
+	url = https://github.com/jiayi-wang98/dice-test-gpu-rodinia.git
 	branch = gpu-rodinia
