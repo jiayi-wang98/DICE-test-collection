@@ -46,13 +46,15 @@ def detect_scale_mode(log_path: Path) -> str | None:
 
 def build_date_mode_map(app_dir: Path, dice_rows: list[dict[str, str]]) -> dict[str, str | None]:
     result_dates = sorted({row["date_time"] for row in dice_rows})
-    log_files = sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith("_asan.log"))
+    log_files = sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith(("_asan.log", "_stderr.log")))
 
-    if len(result_dates) != len(log_files):
+    if len(log_files) < len(result_dates):
         raise ValueError(
             f"{app_dir.name}: found {len(result_dates)} DICE date groups in result.csv but "
-            f"{len(log_files)} raw DICE logs"
+            f"only {len(log_files)} primary raw DICE logs"
         )
+    if len(log_files) > len(result_dates):
+        log_files = log_files[-len(result_dates):]
 
     return {
         date_time: detect_scale_mode(log_path)
@@ -79,9 +81,12 @@ def latest_rows_for_mode(dice_root: Path, app: str, mode: str) -> tuple[str, lis
 
 def latest_log_for_mode(app_dir: Path, mode: str) -> Path:
     matches = []
-    for log_path in sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith("_asan.log")):
-        if detect_scale_mode(log_path) == mode:
-            matches.append(log_path)
+    for log_path in sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith(("_asan.log", "_stderr.log"))):
+        try:
+            if detect_scale_mode(log_path) == mode:
+                matches.append(log_path)
+        except ValueError:
+            continue
 
     if not matches:
         raise FileNotFoundError(f"No {mode} log found in {app_dir}")

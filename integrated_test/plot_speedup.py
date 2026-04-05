@@ -212,14 +212,16 @@ def is_base_dice_log(log_path: Path) -> bool:
 def date_log_pairs(rows: list[dict[str, str]], app_dir: Path, prefix: str) -> list[tuple[str, Path]]:
     result_dates = sorted({row["date_time"] for row in rows})
     log_files = sorted(
-        path for path in app_dir.glob(f"{prefix}_*.log") if not path.name.endswith("_asan.log")
+        path for path in app_dir.glob(f"{prefix}_*.log") if not path.name.endswith(("_asan.log", "_stderr.log"))
     )
 
-    if len(result_dates) != len(log_files):
+    if len(log_files) < len(result_dates):
         raise ValueError(
             f"{app_dir.name}: found {len(result_dates)} date groups in result.csv but "
-            f"{len(log_files)} raw {prefix} logs"
+            f"only {len(log_files)} primary raw {prefix} logs"
         )
+    if len(log_files) > len(result_dates):
+        log_files = log_files[-len(result_dates):]
 
     return list(zip(result_dates, log_files))
 
@@ -234,11 +236,13 @@ def latest_base_gpu_rows(app: str, gpu_root: Path) -> tuple[str, list[dict[str, 
     for row in rows:
         grouped[row["date_time"]].append(row)
 
-    matches = [
-        (date_time, grouped[date_time])
-        for date_time, log_path in date_log_pairs(rows, gpu_root / app, "test_gpu")
-        if is_base_gpu_log(log_path)
-    ]
+    matches = []
+    for date_time, log_path in date_log_pairs(rows, gpu_root / app, "test_gpu"):
+        try:
+            if is_base_gpu_log(log_path):
+                matches.append((date_time, grouped[date_time]))
+        except ValueError:
+            continue
     if not matches:
         raise ValueError(f"{app}: no base RTX2060S GPU run found")
     return matches[-1]
@@ -249,9 +253,12 @@ def latest_base_dice_dates_by_variant(app: str, dice_root: Path) -> dict[str, st
     selected: dict[str, str] = {}
 
     for date_time, log_path in date_log_pairs(rows, dice_root / app, "test_dice"):
-        if not is_base_dice_log(log_path):
+        try:
+            if not is_base_dice_log(log_path):
+                continue
+            selected[detect_variant(log_path)] = date_time
+        except ValueError:
             continue
-        selected[detect_variant(log_path)] = date_time
 
     missing = [variant for variant in VARIANT_ORDER if variant not in selected]
     if missing:

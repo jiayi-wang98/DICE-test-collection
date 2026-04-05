@@ -204,7 +204,7 @@ def latest_gpu_log(app_dir: Path) -> Path:
     matches = [
         path
         for path in sorted(
-            path for path in app_dir.glob("test_gpu_*.log") if not path.name.endswith("_asan.log")
+            path for path in app_dir.glob("test_gpu_*.log") if not path.name.endswith(("_asan.log", "_stderr.log"))
         )
         if is_base_gpu_log(path)
     ]
@@ -215,9 +215,12 @@ def latest_gpu_log(app_dir: Path) -> Path:
 
 def latest_dice_full_log(app_dir: Path) -> Path:
     matches = []
-    for log_path in sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith("_asan.log")):
-        if is_base_dice_log(log_path) and detect_variant(log_path) == "DICE-full":
-            matches.append(log_path)
+    for log_path in sorted(path for path in app_dir.glob("test_dice_*.log") if not path.name.endswith(("_asan.log", "_stderr.log"))):
+        try:
+            if is_base_dice_log(log_path) and detect_variant(log_path) == "DICE-full":
+                matches.append(log_path)
+        except ValueError:
+            continue
     if not matches:
         raise FileNotFoundError(f"No base DICE-full log found in {app_dir}")
     return matches[-1]
