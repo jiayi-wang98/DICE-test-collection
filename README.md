@@ -10,6 +10,29 @@ This repository contains the simulator trees, benchmark suites, and analysis scr
 
 The main entry points live in [`integrated_test`](./integrated_test).
 
+## Quick Start with Docker
+
+A prebuilt Docker image is available at `jiayiwang0710/dice-isca-eval:cuda11.7`. Pull the image and enter an interactive shell with:
+
+```bash
+docker pull jiayiwang0710/dice-isca-eval:cuda11.7
+docker run --rm -it jiayiwang0710/dice-isca-eval:cuda11.7 shell
+```
+
+If you want outputs written directly into your host checkout, run the container with a bind mount instead:
+
+```bash
+docker run --rm -it -v "$PWD":/opt/DICE-test-collection \
+  jiayiwang0710/dice-isca-eval:cuda11.7 shell
+```
+
+Inside the container, run:
+
+```bash
+bash integrated_test/run_base_test.sh
+bash integrated_test/run_scale_out_test.sh
+```
+
 ## Repository Layout
 
 - `dice_gpgpu-sim`
@@ -40,7 +63,7 @@ Both test harnesses use the same benchmark list:
 ### 1. Clone the repository with its submodules
 
 ```bash
-git clone git@github.com:jiayi-wang98/DICE-test-collection.git
+git clone https://github.com/jiayi-wang98/DICE-test-collection.git
 cd DICE-test-collection
 git submodule update --init --recursive
 ```
