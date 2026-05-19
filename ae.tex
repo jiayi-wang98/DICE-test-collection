@@ -1,0 +1,120 @@
+\appendix
+\section{Artifact Appendix}
+
+\subsection{Abstract}
+This artifact contains the code, benchmark inputs, DICE metadata bundles, and plotting scripts used to evaluate DICE against baseline GPGPU-Sim. It supports three experiment groups from the paper: base comparison, scale-up, and scale-out. The intended artifact-evaluation path is a full rerun of the experiments followed by plot generation.
+
+\subsection{Artifact Checklist (Meta-Information)}
+
+{\small
+\begin{itemize}
+  \item \textbf{Program:} Bash scripts, Python scripts, CUDA Rodinia benchmarks, GPGPU-Sim
+  \item \textbf{Compilation:} \texttt{make}, \texttt{gcc}/\texttt{g++}, \texttt{nvcc}
+  \item \textbf{Data set:} Bundled Rodinia inputs
+  \item \textbf{Run-time environment:} 64-bit Linux
+  \item \textbf{Hardware:} Multicore CPU; no physical GPU required
+  \item \textbf{Metrics:} Speedup; normalized RF accesses
+  \item \textbf{Output:} CSV, PDF, PNG
+  \item \textbf{Experiments:} Base; scale-up; scale-out
+  \item \textbf{How much disk space required (approximately)?} About 15--20~GB
+  \item \textbf{How much time is needed to prepare workflow (approximately)?} About 15--30 minutes
+  \item \textbf{How much time is needed to complete experiments (approximately)?} Several hours for a full rerun
+  \item \textbf{Publicly available?} Yes
+  \item \textbf{Workflow automation framework used:} Bash, \texttt{make}, and Python
+  \item \textbf{Archived (provide DOI):} \url{https://doi.org/10.5281/zenodo.19278715}
+\end{itemize}
+}
+
+\subsection{Description}
+
+\subsubsection{How to Access}
+The archived artifact is available at \url{https://doi.org/10.5281/zenodo.19278715}. A source mirror is available at \url{https://github.com/jiayi-wang98/DICE-test-collection}. If the GitHub repository is used instead of the archive, initialize the submodules before running anything:
+
+\begin{verbatim}
+git clone https://github.com/\
+jiayi-wang98/\
+DICE-test-collection
+cd DICE-test-collection
+git submodule update --init --recursive
+\end{verbatim}
+
+\subsubsection{Hardware Dependencies}
+A standard 64-bit Linux machine is sufficient. A physical NVIDIA GPU is not required because the experiments are simulation-based. A multicore CPU is recommended because the scripts use parallel builds by default.
+
+\subsubsection{Software Dependencies}
+The artifact requires \texttt{bash}, GNU \texttt{make}, \texttt{gcc}/\texttt{g++}, and the NVIDIA CUDA Toolkit 11.7 (including \texttt{nvcc} and \texttt{ptxas}). It also requires Python~3 with \texttt{numpy} and \texttt{matplotlib}. The practical Linux package dependencies are the usual GPGPU-Sim requirements: \texttt{build-essential}, \texttt{xutils-dev}, \texttt{bison}, \texttt{flex}, \texttt{zlib1g-dev}, \texttt{libglu1-mesa-dev}, \texttt{libxi-dev}, \texttt{libxmu-dev}, and \texttt{libglut3-dev}. In practice, a compatible \texttt{libasan} runtime is also required because several benchmarks are built with AddressSanitizer. No proprietary EDA tools are required.
+
+\subsubsection{Data Sets}
+All benchmark inputs needed by the automated workflow are already bundled in the artifact under \path{dice-test-gpu-rodinia/data} and \path{gpu-rodinia/data}. The DICE runs also require the bundled metadata/PPTX directories \path{dice-test-gpu-rodinia/cuda/dice_test/sw_20pe}, \path{dice-test-gpu-rodinia/cuda/dice_test/sw_40pe}, and \path{dice-test-gpu-rodinia/cuda/dice_test/sw_rtx3070}.
+
+\subsubsection{Models}
+The artifact does not contain a machine-learning model. The relevant configuration models are the included simulator configuration files for the evaluated RTX2060S-, RTX3070-, RTX5000-, and RTX6000-style systems.
+
+\subsection{Installation}
+Run all commands from the repository root. Set the CUDA paths before running the workflow:
+
+\begin{verbatim}
+export CUDA_INSTALL_PATH=/usr/local/cuda-11.7
+export PTXAS_CUDA_INSTALL_PATH=/usr/local/cuda-11.7
+\end{verbatim}
+
+On Ubuntu-like systems, the required host packages can be installed with:
+
+\begin{verbatim}
+sudo apt-get install git build-essential xutils-dev bison flex zlib1g-dev \
+  libglu1-mesa-dev libxi-dev libxmu-dev libglut3-dev \
+  python3 python3-numpy python3-matplotlib
+\end{verbatim}
+
+If the AddressSanitizer runtime is missing at run time, install the \texttt{libasan}
+package matching the system GCC version.
+
+On RHEL/Rocky/Alma-like systems, the equivalent packages can be installed with:
+
+\begin{verbatim}
+sudo dnf install git gcc gcc-c++ make bison flex zlib-devel \
+  mesa-libGLU-devel libXi-devel libXmu-devel freeglut-devel \
+  python3 python3-numpy python3-matplotlib
+\end{verbatim}
+
+If the AddressSanitizer runtime is missing on those systems, install \texttt{libasan}.
+
+If the local CUDA installation path differs from \path{/usr/local/cuda-11.7}, update both \path{dice-test-gpu-rodinia/common/make.config} and \path{gpu-rodinia/common/make.config} accordingly.
+
+\subsection{Experiment Workflow}
+The intended artifact-evaluation path is a full rerun:
+
+A prebuilt Docker image is also available at \texttt{jiayiwang0710/dice-isca-eval:cuda11.7}. Reviewers can pull the image and enter an interactive shell with:
+
+\begin{verbatim}
+docker pull jiayiwang0710/dice-isca-eval:cuda11.7
+docker run --rm -it jiayiwang0710/dice-isca-eval:cuda11.7 shell
+\end{verbatim}
+
+Inside the container, run:
+
+\begin{verbatim}
+bash integrated_test/run_base_test.sh
+bash integrated_test/run_scale_out_test.sh
+\end{verbatim}
+
+The first script builds and runs the base and scale-up experiments. The second script builds and runs the scale-out experiments. Generated outputs are written to \path{integrated_test/generated_base}, \path{integrated_test/generated_scale_up}, and \path{integrated_test/generated_scale_out}.
+
+\subsection{Evaluation and Expected Results}
+The main generated PDFs corresponding to the paper figures are:
+
+\begin{itemize}
+  \item Figure~9: \path{integrated_test/generated_base/rf_access_reduction.pdf}
+  \item Figure~10: \path{integrated_test/generated_base/dice_gpu_speedup.pdf}
+  \item Figure~15: \path{integrated_test/generated_scale_up/40PE_vs_20PE_perf.pdf} and \path{integrated_test/generated_scale_up/40PE_vs_20PE_rf.pdf}
+  \item Figure~16: \path{integrated_test/generated_scale_out/scale_out_speedup.pdf}
+  \item Figure~18: \path{integrated_test/generated_scale_out/scale_out_3070_speedup.pdf} and \path{integrated_test/generated_scale_out/scale_out_3070_rf_reduction.pdf}
+\end{itemize}
+
+The corresponding summary CSV files are stored in the same output directories.
+
+\subsection{Experiment Customization}
+Reviewers can override \texttt{JOBS=<n>} to control parallelism, and can selectively enable or disable parts of the workflow using the Boolean environment variables already exposed by the two top-level wrapper scripts.
+
+\subsection{Notes}
+This appendix documents the fresh-machine full-rerun path. It intentionally does not rely on regenerating plots from pre-existing results.
